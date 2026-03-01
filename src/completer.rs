@@ -57,7 +57,9 @@ impl ShellCompleter {
             && !candidates.is_empty()
         {
             candidates.iter_mut().for_each(|p| {
-                if !Path::new(&p.replacement).is_dir() {
+                if Path::new(&p.replacement).is_dir() {
+                    p.display += "/";
+                } else {
                     p.replacement += " ";
                 }
             });
