@@ -1,8 +1,16 @@
-use std::{borrow::Cow, collections::HashSet, sync::RwLock};
+use std::{
+    // borrow::Cow,
+    collections::HashSet,
+    sync::RwLock,
+};
 
 use lazy_static::lazy_static;
 use radix_trie::{Trie, TrieCommon};
-use rustyline::{Changeset, completion::Completer, line_buffer::LineBuffer};
+use rustyline::{
+    // Changeset,
+    completion::{Completer, FilenameCompleter, Pair},
+    // line_buffer::LineBuffer,
+};
 
 use crate::{
     builtin::BUILTIN_COMMANDS,
@@ -27,17 +35,23 @@ lazy_static! {
     };
 }
 
-pub struct ShellCompleter;
+pub struct ShellCompleter {
+    file_completer: FilenameCompleter,
+}
 
-impl Completer for ShellCompleter {
-    type Candidate = String;
+impl ShellCompleter {
+    pub fn new() -> ShellCompleter {
+        ShellCompleter {
+            file_completer: FilenameCompleter::new(),
+        }
+    }
 
-    fn complete(
-        &self, // FIXME should be `&mut self`
+    fn complete_executable(
+        &self,
         line: &str,
         pos: usize,
         _ctx: &rustyline::Context<'_>,
-    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+    ) -> rustyline::Result<(usize, Vec<String>)> {
         // 检查 PATH 是否有更新
         let new_env_path = load_env_path();
         let old_env_path = PATH_ENV.read().unwrap_or_else(|err| err.into_inner());
@@ -59,28 +73,75 @@ impl Completer for ShellCompleter {
         }
 
         //TODO 支持 command, args 区分，支持不同类型的补全
+        //TODO 判断当前应该使用 executable complete 还是 filename complete
+        //TODO 判断当前 executable 的名字起始位置
         if let Some(sub_trie) = SUPPORT_COMMANDS.read().unwrap().get_raw_descendant(line) {
             // dbg!(&sub_trie);
 
             // candidates 无需排序，trie 中取出来之后就是按字典序排好序的
             let candidates: Vec<String> = sub_trie.keys().map(|key| key.to_string()).collect();
             // dbg!(&candidates);
-
             Ok((0, candidates))
         } else {
             Ok((pos, Vec::with_capacity(0)))
         }
     }
+}
 
-    fn update(&self, line: &mut LineBuffer, start: usize, elected: &str, cl: &mut Changeset) {
-        let end = line.pos();
-        let elected = if let Some(sub_trie) = SUPPORT_COMMANDS.read().unwrap().subtrie(elected)
-            && sub_trie.is_leaf()
+impl Completer for ShellCompleter {
+    type Candidate = Pair;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        ctx: &rustyline::Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        if let Ok((pos, candidates)) = self.file_completer.complete(line, pos, ctx)
+            && !candidates.is_empty()
         {
-            Cow::Owned(elected.to_string() + " ")
+            Ok((
+                pos,
+                candidates
+                    .into_iter()
+                    .map(
+                        |Pair {
+                             display,
+                             replacement,
+                         }| Pair {
+                            display,
+                            replacement: replacement + " ",
+                        },
+                    )
+                    .collect(),
+            ))
+        } else if let Ok((pos, candidates)) = self.complete_executable(line, pos, ctx)
+            && !candidates.is_empty()
+        {
+            let candidates = candidates
+                .into_iter()
+                .map(|s| Pair {
+                    display: s.clone(),
+                    replacement: s + " ",
+                })
+                .collect();
+            Ok((pos, candidates))
         } else {
-            Cow::Borrowed(elected)
-        };
-        line.replace(start..end, &elected, cl);
+            Ok((0, Vec::with_capacity(0)))
+        }
     }
+
+    // fn update(&self, line: &mut LineBuffer, start: usize, elected: &str, cl: &mut Changeset) {
+    //     let end = line.pos();
+    //     let elected = if let Some(sub_trie) = SUPPORT_COMMANDS.read().unwrap().subtrie(elected) {
+    //         if sub_trie.is_leaf() {
+    //             Cow::Owned(elected.to_string() + " ")
+    //         } else {
+    //             Cow::Borrowed(elected)
+    //         }
+    //     } else {
+    //         Cow::Owned(elected.to_string() + " ")
+    //     };
+    //     line.replace(start..end, &elected, cl);
+    // }
 }

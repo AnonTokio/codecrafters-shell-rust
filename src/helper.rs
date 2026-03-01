@@ -18,8 +18,8 @@ pub struct ShellHelper {
 impl ShellHelper {
     pub fn new() -> Self {
         Self {
-            validator: ShellValidator,
-            completer: ShellCompleter,
+            validator: ShellValidator::new(),
+            completer: ShellCompleter::new(),
             hinter: HistoryHinter::new(),
         }
     }
