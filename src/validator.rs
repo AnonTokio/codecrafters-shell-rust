@@ -2,6 +2,12 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 
 pub struct ShellValidator;
 
+impl ShellValidator {
+    pub fn new() -> ShellValidator {
+        ShellValidator
+    }
+}
+
 impl Validator for ShellValidator {
     fn validate(&self, ctx: &mut ValidationContext) -> rustyline::Result<ValidationResult> {
         let input = ctx.input();
