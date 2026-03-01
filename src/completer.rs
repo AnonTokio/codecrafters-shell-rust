@@ -1,6 +1,7 @@
 use std::{
     // borrow::Cow,
     collections::HashSet,
+    path::Path,
     sync::RwLock,
 };
 
@@ -46,12 +47,32 @@ impl ShellCompleter {
         }
     }
 
+    fn complete_filename(
+        &self,
+        line: &str,
+        pos: usize,
+        ctx: &rustyline::Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
+        if let Ok((start, mut candidates)) = self.file_completer.complete(line, pos, ctx)
+            && !candidates.is_empty()
+        {
+            candidates.iter_mut().for_each(|p| {
+                if !Path::new(&p.replacement).is_dir() {
+                    p.replacement += " ";
+                }
+            });
+            Ok((start, candidates))
+        } else {
+            Ok((0, Vec::with_capacity(0)))
+        }
+    }
+
     fn complete_executable(
         &self,
         line: &str,
         pos: usize,
         _ctx: &rustyline::Context<'_>,
-    ) -> rustyline::Result<(usize, Vec<String>)> {
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
         // 检查 PATH 是否有更新
         let new_env_path = load_env_path();
         let old_env_path = PATH_ENV.read().unwrap_or_else(|err| err.into_inner());
@@ -81,6 +102,13 @@ impl ShellCompleter {
             // candidates 无需排序，trie 中取出来之后就是按字典序排好序的
             let candidates: Vec<String> = sub_trie.keys().map(|key| key.to_string()).collect();
             // dbg!(&candidates);
+            let candidates = candidates
+                .into_iter()
+                .map(|s| Pair {
+                    display: s.clone(),
+                    replacement: s + " ",
+                })
+                .collect();
             Ok((0, candidates))
         } else {
             Ok((pos, Vec::with_capacity(0)))
@@ -97,51 +125,18 @@ impl Completer for ShellCompleter {
         pos: usize,
         ctx: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        if let Ok((pos, candidates)) = self.file_completer.complete(line, pos, ctx)
+        if let Ok((start, candidates)) = self.complete_filename(line, pos, ctx)
             && !candidates.is_empty()
         {
-            Ok((
-                pos,
-                candidates
-                    .into_iter()
-                    .map(
-                        |Pair {
-                             display,
-                             replacement,
-                         }| Pair {
-                            display,
-                            replacement: replacement + " ",
-                        },
-                    )
-                    .collect(),
-            ))
-        } else if let Ok((pos, candidates)) = self.complete_executable(line, pos, ctx)
+            Ok((start, candidates))
+        } else if let Ok((start, candidates)) = self.complete_executable(line, pos, ctx)
             && !candidates.is_empty()
         {
-            let candidates = candidates
-                .into_iter()
-                .map(|s| Pair {
-                    display: s.clone(),
-                    replacement: s + " ",
-                })
-                .collect();
-            Ok((pos, candidates))
+            Ok((start, candidates))
         } else {
             Ok((0, Vec::with_capacity(0)))
         }
     }
 
-    // fn update(&self, line: &mut LineBuffer, start: usize, elected: &str, cl: &mut Changeset) {
-    //     let end = line.pos();
-    //     let elected = if let Some(sub_trie) = SUPPORT_COMMANDS.read().unwrap().subtrie(elected) {
-    //         if sub_trie.is_leaf() {
-    //             Cow::Owned(elected.to_string() + " ")
-    //         } else {
-    //             Cow::Borrowed(elected)
-    //         }
-    //     } else {
-    //         Cow::Owned(elected.to_string() + " ")
-    //     };
-    //     line.replace(start..end, &elected, cl);
-    // }
+    // TODO 当 pos 不为末尾时，能正确 update
 }
