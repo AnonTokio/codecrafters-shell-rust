@@ -43,7 +43,6 @@ lazy_static! {
             .build();
         let mut rl = Editor::with_config(config).expect("Failed to build Editor");
         rl.set_helper(Some(helper));
-        // let _ = rl.load_history(HISTORY_FILE.as_str());
         Mutex::new(rl)
     };
 }
@@ -94,9 +93,5 @@ fn main() {
         }
     }
 
-    // RL.lock()
-    //     .unwrap()
-    //     .append_history(HISTORY_FILE.as_str())
-    //     .ok();
     save_history(HISTORY_FILE.as_str(), true).ok();
 }

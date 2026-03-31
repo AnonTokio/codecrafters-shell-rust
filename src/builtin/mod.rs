@@ -3,7 +3,10 @@ use std::{collections::HashSet, env, io::Write, path::PathBuf};
 use lazy_static::lazy_static;
 
 use crate::{
-    HISTORY_FILE, Result, command::{Execute, Parse, ParseCommandError}, history::save_history, redirect::{Reader, Writer}
+    HISTORY_FILE, Result,
+    command::{Execute, Parse, ParseCommandError},
+    history::save_history,
+    redirect::{Reader, Writer},
 };
 
 mod history;
@@ -14,7 +17,7 @@ use type_::Type;
 
 lazy_static! {
     pub static ref BUILTIN_COMMANDS: HashSet<&'static str> =
-        HashSet::from(["echo", "type", "history", "pwd", "cd", "exit"]);
+        HashSet::from(["echo", "type", "history", "pwd", "cd", "jobs", "exit"]);
 }
 
 pub type ExitCode = i32;
@@ -26,6 +29,7 @@ pub enum BuiltinCommand {
     History(History),
     Pwd,
     Cd(String),
+    Jobs,
     Exit(ExitCode),
 }
 
@@ -68,6 +72,15 @@ impl Parse for BuiltinCommand {
                     "~".to_string()
                 };
                 BuiltinCommand::Cd(target_dir)
+            }
+            "jobs" => {
+                if !args.is_empty() {
+                    return Err(
+                        ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 0).into(),
+                    );
+                }
+
+                BuiltinCommand::Jobs
             }
             "exit" => {
                 if args.len() > 1 {
@@ -128,11 +141,8 @@ impl Execute for BuiltinCommand {
                     0
                 }
             }
+            BuiltinCommand::Jobs => 0,
             BuiltinCommand::Exit(exit_code) => {
-                // RL.lock()
-                //     .unwrap()
-                //     .append_history(HISTORY_FILE.as_str())
-                //     .ok();
                 save_history(HISTORY_FILE.as_str(), true).ok();
                 std::process::exit(*exit_code)
             }
