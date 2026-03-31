@@ -17,21 +17,11 @@ impl BackgroundManager {
     pub fn add_job(&mut self, command: String, job: std::process::Child) {
         let pid = job.id();
         let id = if let Some(id) = self.jobs.iter().position(|item| item.is_none()) {
-            self.jobs[id].replace(BackgroundJob {
-                id,
-                pid,
-                command,
-                job,
-            });
+            self.jobs[id].replace(BackgroundJob { id, command, job });
             id
         } else {
             let id = self.jobs.len();
-            self.jobs.push(Some(BackgroundJob {
-                id,
-                pid,
-                command,
-                job,
-            }));
+            self.jobs.push(Some(BackgroundJob { id, command, job }));
             id
         };
         self.enque_sequence.push(id);
@@ -90,7 +80,6 @@ impl BackgroundManager {
 
 pub struct BackgroundJob {
     pub id: usize,
-    pub pid: u32,
     pub command: String,
     pub job: std::process::Child,
 }
