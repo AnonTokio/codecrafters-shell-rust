@@ -48,7 +48,7 @@ impl Default for CommandExecution {
             reader: Reader::Stdin,
             output_writer: io::stdout().into(),
             error_writer: io::stderr().into(),
-            use_pipe: true,
+            use_pipe: false,
         }
     }
 }
@@ -132,12 +132,12 @@ pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
                     let (pipe_reader, pipe_writer) = io::pipe()?;
                     next_reader = Some(Reader::PipeReader(pipe_reader));
                     output_writer = Some(Writer::PipeWriter(pipe_writer));
-                    false
+                    true
                 }
                 //TODO 处理 exit code
-                "&&" => todo!(),
-                "||" => todo!(),
-                ";" => true,
+                "&&" => false,
+                "||" => false,
+                ";" => false,
                 _ => unreachable!(),
             };
             command_exec_vec.push(CommandExecution::new(
@@ -163,7 +163,7 @@ pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
             reader.unwrap_or(Reader::Stdin),
             output_writer.unwrap_or(io::stdout().into()),
             error_writer.unwrap_or(io::stderr().into()),
-            true,
+            false,
         ));
     }
 
