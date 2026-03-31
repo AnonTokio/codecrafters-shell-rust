@@ -57,6 +57,35 @@ impl BackgroundManager {
             .unwrap_or(most_recent_job_id);
         (most_recent_job_id, second_recent_job_id)
     }
+
+    pub fn reap_jobs(&mut self) -> Vec<(bool, String)> {
+        let (most_recent_job_id, second_recent_job_id) = self.get_most_recent_indices();
+        let mut finished_jobs = vec![];
+        let mut reap_msgs = vec![];
+        for job in self.jobs.iter_mut().flatten() {
+            let mark = if job.id == most_recent_job_id {
+                "+"
+            } else if job.id == second_recent_job_id {
+                "-"
+            } else {
+                " "
+            };
+            let command = &job.command;
+            let prefix = format!("[{}]{}", job.id + 1, mark);
+            let (done, status, suffix) = if let Ok(None) = job.job.try_wait() {
+                (false, "Running", " &")
+            } else {
+                finished_jobs.push(job.id);
+                (true, "Done", "")
+            };
+            reap_msgs.push((
+                done,
+                format!("{:6}{:24}{}{}\n", prefix, status, command, suffix),
+            ));
+        }
+        self.delete_jobs(&finished_jobs);
+        reap_msgs
+    }
 }
 
 pub struct BackgroundJob {

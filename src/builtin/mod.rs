@@ -147,37 +147,9 @@ impl Execute for BuiltinCommand {
             }
             BuiltinCommand::Jobs => {
                 if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
-                    let (most_recent_job_id, second_recent_job_id) =
-                        bg_manager.get_most_recent_indices();
-                    let mut finished_jobs = vec![];
-                    for job in bg_manager.jobs.iter_mut().flatten() {
-                        let mark = if job.id == most_recent_job_id {
-                            "+"
-                        } else if job.id == second_recent_job_id {
-                            "-"
-                        } else {
-                            " "
-                        };
-                        let command = &job.command;
-                        let prefix = format!("[{}]{}", job.id + 1, mark);
-                        let (status, suffix) = if let Ok(None) = job.job.try_wait() {
-                            ("Running", " &")
-                        } else {
-                            finished_jobs.push(job.id);
-                            ("Done", "")
-                        };
-                        if writeln!(
-                            output_writer,
-                            "{:6}{:24}{}{}",
-                            prefix, status, command, suffix
-                        )
-                        .is_err()
-                        {
-                            return -1;
-                        }
-                    }
-                    bg_manager.delete_jobs(&finished_jobs);
-                    0
+                    let reap_msgs = bg_manager.reap_jobs();
+                    let msg: String = reap_msgs.iter().map(|(_, msg)| msg.as_str()).collect();
+                    -(write!(output_writer, "{}", msg).is_err() as ExitCode)
                 } else {
                     -1
                 }

@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use rustyline::{CompletionType, Config, EditMode, Editor, history::FileHistory};
 
 use crate::{
+    backgrond::BACKGROUDN_MANAGER,
     helper::ShellHelper,
     history::{CURRENT_SESSION_HISTORY, load_history, save_history},
     parser::parse_tokens,
@@ -74,6 +75,16 @@ fn main() {
             Err(err) => {
                 eprintln!("{}", err);
                 break;
+            }
+        }
+        if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
+            let reap_msgs = bg_manager.reap_jobs();
+            let msg: String = reap_msgs
+                .iter()
+                .filter_map(|(done, msg)| if *done { Some(msg.as_str()) } else { None })
+                .collect();
+            if !msg.is_empty() {
+                print!("{}", msg);
             }
         }
     }
