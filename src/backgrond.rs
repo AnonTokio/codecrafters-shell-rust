@@ -9,7 +9,9 @@ lazy_static! {
 
 #[derive(Default)]
 pub struct BackgroundManager {
-    jobs: Vec<Option<BackgroundJob>>,
+    pub jobs: Vec<Option<BackgroundJob>>,
+    pub most_recent_job_id: usize,
+    pub second_recent_job_id: usize,
 }
 
 impl BackgroundManager {
@@ -33,6 +35,8 @@ impl BackgroundManager {
             }));
             id
         };
+        self.second_recent_job_id = self.most_recent_job_id;
+        self.most_recent_job_id = id;
         println!("[{}] {}", id + 1, pid);
     }
 }

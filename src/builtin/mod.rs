@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 
 use crate::{
     HISTORY_FILE, Result,
+    backgrond::BACKGROUDN_MANAGER,
     command::{Execute, Parse, ParseCommandError},
     history::save_history,
     redirect::{Reader, Writer},
@@ -144,7 +145,33 @@ impl Execute for BuiltinCommand {
                     0
                 }
             }
-            BuiltinCommand::Jobs => 0,
+            BuiltinCommand::Jobs => {
+                if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
+                    let most_recent_job_id = bg_manager.most_recent_job_id;
+                    let second_recent_job_id = bg_manager.second_recent_job_id;
+                    for job in bg_manager.jobs.iter_mut().flatten() {
+                        if let Ok(None) = job.job.try_wait() {
+                            let mark = if job.id == most_recent_job_id {
+                                "+"
+                            } else if job.id == second_recent_job_id {
+                                "-"
+                            } else {
+                                " "
+                            };
+                            let prefix = format!("[{}]{}", job.id + 1, mark);
+                            let status = "Running";
+                            if writeln!(output_writer, "{:6}{:24}{}", prefix, status, job.command)
+                                .is_err()
+                            {
+                                return -1;
+                            }
+                        }
+                    }
+                    0
+                } else {
+                    -1
+                }
+            }
             BuiltinCommand::Exit(exit_code) => {
                 save_history(HISTORY_FILE.as_str(), true).ok();
                 std::process::exit(*exit_code)
