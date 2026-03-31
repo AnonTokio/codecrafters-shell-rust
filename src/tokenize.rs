@@ -25,9 +25,17 @@ pub fn tokenize(input: &str) -> Vec<String> {
             '\'' => parse_single_quote(&buffer, current_pos),
             '"' => parse_double_quote(&buffer, current_pos),
             '\\' => parse_backslash(&buffer, current_pos, false),
-            //TODO 1. '|' 需要考虑等待下一行的情况
-            //TODO 2. 增加对 "&&" 和 "||" 的支持
-            '&' | ';' | '|' => (ReadStatus::Finish, c.to_string(), 1),
+            //TODO 1. "&&" "||" '|' 需要考虑等待下一行的情况
+            ';' => (ReadStatus::Finish, c.to_string(), 1),
+            '&' | '|' => {
+                if let Some(&next_c) = buffer.get(current_pos + 1)
+                    && next_c == c
+                {
+                    (ReadStatus::Finish, format!("{}{}", c, c), 2)
+                } else {
+                    (ReadStatus::Finish, c.to_string(), 1)
+                }
+            }
             _ => parse_native(&buffer, current_pos),
         };
 
