@@ -1,16 +1,16 @@
-use std::{sync::Mutex, thread};
+use std::sync::Mutex;
 
 use lazy_static::lazy_static;
 use rustyline::{CompletionType, Config, EditMode, Editor, history::FileHistory};
 
 use crate::{
-    command::Execute,
     helper::ShellHelper,
     history::{CURRENT_SESSION_HISTORY, load_history, save_history},
-    parser::{CommandExecution, parse_tokens},
+    parser::parse_tokens,
     tokenize::tokenize,
 };
 
+mod backgrond;
 mod builtin;
 mod command;
 mod completer;
@@ -64,23 +64,8 @@ fn main() {
                 let tokens = tokenize(&line);
                 match parse_tokens(&tokens) {
                     Ok(command_exec_vec) => {
-                        for CommandExecution {
-                            command,
-                            reader,
-                            output_writer,
-                            error_writer,
-                            use_pipe,
-                        } in command_exec_vec
-                        {
-                            //? 对于 pipe 采用并行运行是否是正确的做法？
-                            if use_pipe {
-                                // 不需要单独 join，因为最后一个 pipe 命令是阻塞执行的，所以在不被取消的情况下，会一直等待前面的命令全部执行完才终止
-                                thread::spawn(move || {
-                                    command.execute(reader, output_writer, error_writer)
-                                });
-                            } else {
-                                command.execute(reader, output_writer, error_writer);
-                            }
+                        for command_exec in command_exec_vec {
+                            command_exec.execute();
                         }
                     }
                     Err(err) => eprintln!("{}", err),

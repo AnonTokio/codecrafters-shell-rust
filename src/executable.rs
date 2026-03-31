@@ -4,6 +4,7 @@ use is_executable::IsExecutable;
 use lazy_static::lazy_static;
 
 use crate::{
+    backgrond::BACKGROUDN_MANAGER,
     builtin::ExitCode,
     command::{Args, Execute, Parse},
     redirect::{Reader, Writer},
@@ -72,22 +73,31 @@ impl Parse for Executable {
 }
 
 impl Execute for Executable {
-    fn execute(&self, reader: Reader, output_writer: Writer, error_writer: Writer) -> ExitCode {
-        if let Ok(mut child) = process::Command::new(&self.name)
+    fn execute(
+        &self,
+        reader: Reader,
+        output_writer: Writer,
+        error_writer: Writer,
+        background: bool,
+    ) -> ExitCode {
+        if let Ok(mut job) = process::Command::new(&self.name)
             .args(&self.args)
             .stdin(reader)
             .stdout(output_writer)
             .stderr(error_writer)
             .spawn()
         {
-            if let Ok(exit_status) = child.wait() {
-                exit_status.code().unwrap_or(-1)
-            } else {
-                -1
+            if !background {
+                if let Ok(exit_status) = job.wait() {
+                    return exit_status.code().unwrap_or(-1);
+                }
+            } else if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
+                let command = format!("{} {} &", self.name, self.args.join(" "));
+                bg_manager.add_job(command, job);
+                return 0;
             }
-        } else {
-            -1
         }
+        -1
     }
 }
 

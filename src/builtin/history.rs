@@ -64,6 +64,7 @@ impl Execute for History {
         _reader: Reader,
         mut output_writer: Writer,
         mut error_writer: Writer,
+        _background: bool,
     ) -> ExitCode {
         match self {
             History::Show(show_num) => {

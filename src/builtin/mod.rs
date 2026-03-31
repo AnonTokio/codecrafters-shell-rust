@@ -104,13 +104,16 @@ impl Execute for BuiltinCommand {
         reader: Reader,
         mut output_writer: Writer,
         mut error_writer: Writer,
+        background: bool,
     ) -> ExitCode {
         match self {
             BuiltinCommand::Echo(content) => {
                 -(writeln!(output_writer, "{}", content).is_err() as ExitCode)
             }
-            BuiltinCommand::Type(ty) => ty.execute(reader, output_writer, error_writer),
-            BuiltinCommand::History(hist) => hist.execute(reader, output_writer, error_writer),
+            BuiltinCommand::Type(ty) => ty.execute(reader, output_writer, error_writer, background),
+            BuiltinCommand::History(hist) => {
+                hist.execute(reader, output_writer, error_writer, background)
+            }
             BuiltinCommand::Pwd => {
                 if let Ok(pwd) = env::current_dir() {
                     -(writeln!(output_writer, "{}", pwd.display()).is_err() as ExitCode)

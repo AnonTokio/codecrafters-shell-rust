@@ -38,6 +38,7 @@ impl Execute for Type {
         _reader: Reader,
         mut output_writer: Writer,
         _error_writer: Writer,
+        _background: bool,
     ) -> ExitCode {
         for cmd in &self.commands {
             let exec_res = if BUILTIN_COMMANDS.contains(cmd.as_str()) {
@@ -78,7 +79,12 @@ mod test {
         )
         .unwrap();
         let file = fs::File::create(output_file).unwrap();
-        let exit_code = ty.execute(Reader::Stdin, file.into(), Writer::Stderr(io::stderr()));
+        let exit_code = ty.execute(
+            Reader::Stdin,
+            file.into(),
+            Writer::Stderr(io::stderr()),
+            false,
+        );
         assert_eq!(exit_code, 0);
 
         let exec_res = fs::read_to_string(output_file).unwrap();

@@ -1,11 +1,12 @@
-use std::{collections::HashSet, fs, io};
+use std::{collections::HashSet, fs, io, thread};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::{
     Result,
-    command::{Command, Parse},
+    builtin::ExitCode,
+    command::{Command, Execute, Parse},
     redirect::{Reader, Writer},
 };
 
@@ -21,6 +22,7 @@ pub struct CommandExecution {
     pub output_writer: Writer,
     pub error_writer: Writer,
     pub use_pipe: bool,
+    pub background: bool,
 }
 
 impl CommandExecution {
@@ -30,6 +32,7 @@ impl CommandExecution {
         output_writer: Writer,
         error_writer: Writer,
         use_pipe: bool,
+        background: bool,
     ) -> Self {
         Self {
             command,
@@ -37,6 +40,30 @@ impl CommandExecution {
             output_writer,
             error_writer,
             use_pipe,
+            background,
+        }
+    }
+
+    pub fn execute(self) -> ExitCode {
+        let CommandExecution {
+            command,
+            reader,
+            output_writer,
+            error_writer,
+            use_pipe,
+            background,
+        } = self;
+        {
+            //? 对于 pipe 采用并行运行是否是正确的做法？
+            if use_pipe {
+                // 不需要单独 join，因为最后一个 pipe 命令是阻塞执行的，所以在不被取消的情况下，会一直等待前面的命令全部执行完才终止
+                thread::spawn(move || {
+                    command.execute(reader, output_writer, error_writer, background)
+                });
+                0
+            } else {
+                command.execute(reader, output_writer, error_writer, background)
+            }
         }
     }
 }
@@ -49,6 +76,7 @@ impl Default for CommandExecution {
             output_writer: io::stdout().into(),
             error_writer: io::stderr().into(),
             use_pipe: false,
+            background: false,
         }
     }
 }
@@ -126,18 +154,18 @@ pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
             }
             idx += num;
         } else if COMMAND_END_TOKENS.contains(tokens[idx].as_str()) {
-            let use_pipe = match tokens[idx].as_str() {
-                "&" => todo!(),
+            let (use_pipe, background) = match tokens[idx].as_str() {
+                "&" => (false, true),
                 "|" => {
                     let (pipe_reader, pipe_writer) = io::pipe()?;
                     next_reader = Some(Reader::PipeReader(pipe_reader));
                     output_writer = Some(Writer::PipeWriter(pipe_writer));
-                    true
+                    (true, false)
                 }
                 //TODO 处理 exit code
-                "&&" => false,
-                "||" => false,
-                ";" => false,
+                "&&" => (false, false),
+                "||" => (false, false),
+                ";" => (false, false),
                 _ => unreachable!(),
             };
             command_exec_vec.push(CommandExecution::new(
@@ -146,6 +174,7 @@ pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
                 output_writer.take().unwrap_or(io::stdout().into()),
                 error_writer.take().unwrap_or(io::stderr().into()),
                 use_pipe,
+                background,
             ));
 
             reader = next_reader.take();
@@ -163,6 +192,7 @@ pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
             reader.unwrap_or(Reader::Stdin),
             output_writer.unwrap_or(io::stdout().into()),
             error_writer.unwrap_or(io::stderr().into()),
+            false,
             false,
         ));
     }

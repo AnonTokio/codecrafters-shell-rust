@@ -8,7 +8,13 @@ use crate::{
 };
 
 pub trait Execute {
-    fn execute(&self, reader: Reader, output_writer: Writer, error_writer: Writer) -> ExitCode;
+    fn execute(
+        &self,
+        reader: Reader,
+        output_writer: Writer,
+        error_writer: Writer,
+        background: bool,
+    ) -> ExitCode;
 }
 
 pub trait Parse {
@@ -46,13 +52,21 @@ impl Parse for Command {
 }
 
 impl Execute for Command {
-    fn execute(&self, reader: Reader, output_writer: Writer, mut error_writer: Writer) -> ExitCode {
+    fn execute(
+        &self,
+        reader: Reader,
+        output_writer: Writer,
+        mut error_writer: Writer,
+        background: bool,
+    ) -> ExitCode {
         match self {
             Command::Empty => 0,
             Command::BuiltinCommand(builtin_command) => {
-                builtin_command.execute(reader, output_writer, error_writer)
+                builtin_command.execute(reader, output_writer, error_writer, background)
             }
-            Command::Executable(exec) => exec.execute(reader, output_writer, error_writer),
+            Command::Executable(exec) => {
+                exec.execute(reader, output_writer, error_writer, background)
+            }
             Command::Unknown(unknown) => {
                 let _ = writeln!(error_writer, "{}: command not found", unknown.command);
                 0
