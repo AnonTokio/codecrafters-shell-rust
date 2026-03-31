@@ -92,7 +92,7 @@ impl Execute for Executable {
                     return exit_status.code().unwrap_or(-1);
                 }
             } else if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
-                let command = format!("{} {} &", self.name, self.args.join(" "));
+                let command = format!("{} {}", self.name, self.args.join(" "));
                 bg_manager.add_job(command, job);
                 return 0;
             }

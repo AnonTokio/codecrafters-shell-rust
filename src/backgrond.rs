@@ -10,8 +10,7 @@ lazy_static! {
 #[derive(Default)]
 pub struct BackgroundManager {
     pub jobs: Vec<Option<BackgroundJob>>,
-    pub most_recent_job_id: usize,
-    pub second_recent_job_id: usize,
+    pub enque_sequence: Vec<usize>,
 }
 
 impl BackgroundManager {
@@ -35,9 +34,28 @@ impl BackgroundManager {
             }));
             id
         };
-        self.second_recent_job_id = self.most_recent_job_id;
-        self.most_recent_job_id = id;
+        self.enque_sequence.push(id);
         println!("[{}] {}", id + 1, pid);
+    }
+
+    pub fn delete_jobs(&mut self, ids: &[usize]) {
+        for id in ids {
+            if let Some(job) = self.jobs.get_mut(*id) {
+                job.take();
+            }
+        }
+
+        self.enque_sequence.retain(|id| !ids.contains(id));
+    }
+
+    pub fn get_most_recent_indices(&self) -> (usize, usize) {
+        let most_recent_job_id = self.enque_sequence.last().copied().unwrap_or_default();
+        let second_recent_job_id = self
+            .enque_sequence
+            .get(self.enque_sequence.len().saturating_sub(2))
+            .copied()
+            .unwrap_or(most_recent_job_id);
+        (most_recent_job_id, second_recent_job_id)
     }
 }
 

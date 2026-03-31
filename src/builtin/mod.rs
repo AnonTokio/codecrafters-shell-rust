@@ -147,26 +147,36 @@ impl Execute for BuiltinCommand {
             }
             BuiltinCommand::Jobs => {
                 if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
-                    let most_recent_job_id = bg_manager.most_recent_job_id;
-                    let second_recent_job_id = bg_manager.second_recent_job_id;
+                    let (most_recent_job_id, second_recent_job_id) =
+                        bg_manager.get_most_recent_indices();
+                    let mut finished_jobs = vec![];
                     for job in bg_manager.jobs.iter_mut().flatten() {
-                        if let Ok(None) = job.job.try_wait() {
-                            let mark = if job.id == most_recent_job_id {
-                                "+"
-                            } else if job.id == second_recent_job_id {
-                                "-"
-                            } else {
-                                " "
-                            };
-                            let prefix = format!("[{}]{}", job.id + 1, mark);
-                            let status = "Running";
-                            if writeln!(output_writer, "{:6}{:24}{}", prefix, status, job.command)
-                                .is_err()
-                            {
-                                return -1;
-                            }
+                        let mark = if job.id == most_recent_job_id {
+                            "+"
+                        } else if job.id == second_recent_job_id {
+                            "-"
+                        } else {
+                            " "
+                        };
+                        let command = &job.command;
+                        let prefix = format!("[{}]{}", job.id + 1, mark);
+                        let (status, suffix) = if let Ok(None) = job.job.try_wait() {
+                            ("Running", " &")
+                        } else {
+                            finished_jobs.push(job.id);
+                            ("Done", "")
+                        };
+                        if writeln!(
+                            output_writer,
+                            "{:6}{:24}{}{}",
+                            prefix, status, command, suffix
+                        )
+                        .is_err()
+                        {
+                            return -1;
                         }
                     }
+                    bg_manager.delete_jobs(&finished_jobs);
                     0
                 } else {
                     -1
