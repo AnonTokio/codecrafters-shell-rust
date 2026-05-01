@@ -13,14 +13,14 @@ use crate::{
 
 // -r, -a -w
 #[derive(Debug, PartialEq, Eq)]
-pub enum History {
+pub enum HistoryCommand {
     Show(Option<usize>),
     Read(PathBuf),
     Write(PathBuf),
     Append(PathBuf),
 }
 
-impl Parse for History {
+impl Parse for HistoryCommand {
     fn parse(command: &str, args: &[String]) -> Result<Self>
     where
         Self: std::marker::Sized,
@@ -31,7 +31,7 @@ impl Parse for History {
             } else {
                 Some(args[0].parse()?)
             };
-            Ok(History::Show(show_num))
+            Ok(HistoryCommand::Show(show_num))
         } else if args.len() == 2 {
             let file = PathBuf::from_str(&args[1])?;
             let cmd = match args[0].as_str() {
@@ -43,10 +43,10 @@ impl Parse for History {
                         )
                         .into());
                     }
-                    History::Read(file)
+                    HistoryCommand::Read(file)
                 }
-                "-w" => History::Write(file),
-                "-a" => History::Append(file),
+                "-w" => HistoryCommand::Write(file),
+                "-a" => HistoryCommand::Append(file),
                 arg => {
                     return Err(format!("unknown parameter: {}", arg).into());
                 }
@@ -58,7 +58,7 @@ impl Parse for History {
     }
 }
 
-impl Execute for History {
+impl Execute for HistoryCommand {
     fn execute(
         &self,
         _reader: Reader,
@@ -67,7 +67,7 @@ impl Execute for History {
         _background: bool,
     ) -> ExitCode {
         match self {
-            History::Show(show_num) => {
+            HistoryCommand::Show(show_num) => {
                 let rl = map_err_to_exit_code!(RL.lock());
                 let history = rl.history();
                 let num = history.len();
@@ -83,7 +83,7 @@ impl Execute for History {
                 }
                 0
             }
-            History::Read(file) => {
+            HistoryCommand::Read(file) => {
                 if load_history(file).is_err() {
                     writeln!(error_writer, "Failed to read {}.", file.display()).ok();
                     -1
@@ -91,7 +91,7 @@ impl Execute for History {
                     0
                 }
             }
-            History::Write(file) => {
+            HistoryCommand::Write(file) => {
                 if save_history(file, false).is_err() {
                     writeln!(error_writer, "Failed to write {}.", file.display()).ok();
                     -1
@@ -99,7 +99,7 @@ impl Execute for History {
                     0
                 }
             }
-            History::Append(file) => {
+            HistoryCommand::Append(file) => {
                 if let Ok(mut fp) = OpenOptions::new().append(true).create(true).open(file) {
                     let current_session_history = CURRENT_SESSION_HISTORY
                         .lock()

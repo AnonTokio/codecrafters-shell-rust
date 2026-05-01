@@ -9,17 +9,17 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Type {
+pub struct TypeCommand {
     commands: Vec<String>,
 }
 
-impl Type {
+impl TypeCommand {
     pub fn new(commands: Vec<String>) -> Self {
         Self { commands }
     }
 }
 
-impl Parse for Type {
+impl Parse for TypeCommand {
     fn parse(command: &str, args: &[String]) -> Result<Self>
     where
         Self: std::marker::Sized,
@@ -28,11 +28,11 @@ impl Parse for Type {
             return Err(ParseCommandError::LessArgs(command.to_string(), args.to_vec(), 1).into());
         }
 
-        Ok(Type::new(args.to_vec()))
+        Ok(TypeCommand::new(args.to_vec()))
     }
 }
 
-impl Execute for Type {
+impl Execute for TypeCommand {
     fn execute(
         &self,
         _reader: Reader,
@@ -67,13 +67,13 @@ mod test {
         utils::{set_env_path, vec_str_to_vec_string},
     };
 
-    use super::Type;
+    use super::TypeCommand;
 
     #[test]
     fn test_parse_type() {
         set_env_path();
         let output_file = "/tmp/test_parse_type.txt";
-        let ty = Type::parse(
+        let ty = TypeCommand::parse(
             "type",
             &vec_str_to_vec_string::<Vec<_>>(&["echo", "type", "exit", "ls", "invalid_command"]),
         )

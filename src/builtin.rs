@@ -5,16 +5,18 @@ use lazy_static::lazy_static;
 use crate::{
     HISTORY_FILE, Result,
     backgrond::BACKGROUDN_MANAGER,
+    builtin::complete::CompleteCommand,
     command::{Execute, Parse, ParseCommandError},
     history::save_history,
     redirect::{Reader, Writer},
 };
 
+mod complete;
 mod history;
 mod type_;
 
-use history::History;
-use type_::Type;
+use history::HistoryCommand;
+use type_::TypeCommand;
 
 lazy_static! {
     pub static ref BUILTIN_COMMANDS: HashSet<&'static str> = HashSet::from([
@@ -27,11 +29,11 @@ pub type ExitCode = i32;
 #[derive(Debug, PartialEq, Eq)]
 pub enum BuiltinCommand {
     Echo(String),
-    Type(Type),
-    History(History),
+    Type(TypeCommand),
+    History(HistoryCommand),
     Pwd,
     Cd(String),
-    Complete,
+    Complete(CompleteCommand),
     Jobs,
     Exit(ExitCode),
 }
@@ -50,8 +52,8 @@ impl Parse for BuiltinCommand {
                 };
                 BuiltinCommand::Echo(content)
             }
-            "type" => BuiltinCommand::Type(Type::parse(command, args)?),
-            "history" => BuiltinCommand::History(History::parse(command, args)?),
+            "type" => BuiltinCommand::Type(TypeCommand::parse(command, args)?),
+            "history" => BuiltinCommand::History(HistoryCommand::parse(command, args)?),
             "pwd" => {
                 // TODO 能否统一 check arg num 过程？
                 if !args.is_empty() {
@@ -76,7 +78,7 @@ impl Parse for BuiltinCommand {
                 };
                 BuiltinCommand::Cd(target_dir)
             }
-            "complete" => BuiltinCommand::Complete,
+            "complete" => BuiltinCommand::Complete(CompleteCommand::parse(command, args)?),
             "jobs" => {
                 if !args.is_empty() {
                     return Err(
@@ -151,7 +153,9 @@ impl Execute for BuiltinCommand {
                     0
                 }
             }
-            BuiltinCommand::Complete => 0,
+            BuiltinCommand::Complete(comp) => {
+                comp.execute(reader, output_writer, error_writer, background)
+            }
             BuiltinCommand::Jobs => {
                 if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
                     let reap_msgs = bg_manager.reap_jobs();
