@@ -17,8 +17,9 @@ use history::History;
 use type_::Type;
 
 lazy_static! {
-    pub static ref BUILTIN_COMMANDS: HashSet<&'static str> =
-        HashSet::from(["echo", "type", "history", "pwd", "cd", "jobs", "exit"]);
+    pub static ref BUILTIN_COMMANDS: HashSet<&'static str> = HashSet::from([
+        "echo", "type", "history", "pwd", "cd", "complete", "jobs", "exit"
+    ]);
 }
 
 pub type ExitCode = i32;
@@ -30,6 +31,7 @@ pub enum BuiltinCommand {
     History(History),
     Pwd,
     Cd(String),
+    Complete,
     Jobs,
     Exit(ExitCode),
 }
@@ -74,6 +76,7 @@ impl Parse for BuiltinCommand {
                 };
                 BuiltinCommand::Cd(target_dir)
             }
+            "complete" => BuiltinCommand::Complete,
             "jobs" => {
                 if !args.is_empty() {
                     return Err(
@@ -128,12 +131,15 @@ impl Execute for BuiltinCommand {
                     .components()
                     .map(|p| p.as_os_str().to_string_lossy().to_string())
                     .collect();
-                //TODO 是否需要检查 paths.is_empty()
-                if paths[0] == "~" {
-                    paths[0] = env::home_dir()
-                        .map_or("".to_string(), |path| path.to_string_lossy().to_string());
-                }
-                let target_dir: PathBuf = paths.iter().collect();
+                let target_dir = if !paths.is_empty() {
+                    if paths[0] == "~" {
+                        paths[0] = env::home_dir()
+                            .map_or("".to_string(), |path| path.to_string_lossy().to_string());
+                    }
+                    paths.iter().collect()
+                } else {
+                    env::home_dir().unwrap_or_default()
+                };
                 if env::set_current_dir(&target_dir).is_err() {
                     let _ = writeln!(
                         error_writer,
@@ -145,6 +151,7 @@ impl Execute for BuiltinCommand {
                     0
                 }
             }
+            BuiltinCommand::Complete => 0,
             BuiltinCommand::Jobs => {
                 if let Ok(mut bg_manager) = BACKGROUDN_MANAGER.lock() {
                     let reap_msgs = bg_manager.reap_jobs();
