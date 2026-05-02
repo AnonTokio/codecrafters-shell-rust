@@ -6,15 +6,16 @@ use std::{
 };
 
 use lazy_static::lazy_static;
+use rustyline::error::ReadlineError;
 
-use crate::{RL, Result};
+use crate::RL;
 
 lazy_static! {
     pub static ref CURRENT_SESSION_HISTORY: Mutex<Vec<String>> = Mutex::new(Vec::new());
     pub static ref LAST_APPEND_INDEX: AtomicUsize = AtomicUsize::default();
 }
 
-pub fn load_history<P: AsRef<Path>>(file: P) -> Result<()> {
+pub fn load_history<P: AsRef<Path>>(file: P) -> Result<(), ReadlineError> {
     let fp = BufReader::new(File::open(file)?);
     let mut rl = RL.lock().expect("Failed to require history");
     for line in fp.lines() {
@@ -23,7 +24,7 @@ pub fn load_history<P: AsRef<Path>>(file: P) -> Result<()> {
     Ok(())
 }
 
-pub fn save_history<P: AsRef<Path>>(file: P, is_append: bool) -> Result<()> {
+pub fn save_history<P: AsRef<Path>>(file: P, is_append: bool) -> Result<(), ReadlineError> {
     let mut fp = OpenOptions::new()
         .read(true)
         .write(true)

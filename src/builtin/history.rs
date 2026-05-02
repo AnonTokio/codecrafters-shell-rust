@@ -3,9 +3,9 @@ use std::{fs::OpenOptions, io::Write, path::PathBuf, str::FromStr, sync::atomic:
 use rustyline::history::History as _;
 
 use crate::{
-    RL, Result,
+    RL,
     builtin::ExitCode,
-    command::{Execute, Parse, ParseCommandError},
+    command::{Execute, Parse, ParseCommandError, ParseCommandResult},
     history::{CURRENT_SESSION_HISTORY, LAST_APPEND_INDEX, load_history, save_history},
     map_err_to_exit_code,
     redirect::{Reader, Writer},
@@ -21,7 +21,7 @@ pub enum HistoryCommand {
 }
 
 impl Parse for HistoryCommand {
-    fn parse(command: &str, args: &[String]) -> Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -37,23 +37,23 @@ impl Parse for HistoryCommand {
             let cmd = match args[0].as_str() {
                 "-r" => {
                     if !file.is_file() {
-                        return Err(format!(
-                            "File {} does not exits or is not a file.",
-                            file.display()
-                        )
-                        .into());
+                        return Err(ParseCommandError::FileNotExists(file.display().to_string()));
                     }
                     HistoryCommand::Read(file)
                 }
                 "-w" => HistoryCommand::Write(file),
                 "-a" => HistoryCommand::Append(file),
                 arg => {
-                    return Err(format!("unknown parameter: {}", arg).into());
+                    return Err(ParseCommandError::UnknownParam(arg.to_string()));
                 }
             };
             Ok(cmd)
         } else {
-            Err(ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 2).into())
+            Err(ParseCommandError::MoreArgs(
+                command.to_string(),
+                args.to_vec(),
+                2,
+            ))
         }
     }
 }

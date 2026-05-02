@@ -1,11 +1,38 @@
-use std::{fmt::Display, io::Write};
+use std::io::Write;
+
+use thiserror::Error;
 
 use crate::{
-    Result,
     builtin::{BUILTIN_COMMANDS, BuiltinCommand, ExitCode},
     executable::Executable,
     redirect::{Reader, Writer},
 };
+
+#[derive(Debug, PartialEq, Eq, Error)]
+pub enum ParseCommandError {
+    #[error("{}: not enough arguments", .0)]
+    LessArgs(String, Args, usize),
+
+    #[error("{}: too many arguments", .0)]
+    MoreArgs(String, Args, usize),
+
+    #[error("Unknown parameter: {}", .0)]
+    UnknownParam(String),
+
+    #[error( "File {} does not exists or is not a file.", .0)]
+    FileNotExists(String),
+
+    #[error( "Executable {} does not exists or is not a file.", .0)]
+    ExecutableNotExists(String),
+
+    #[error("Failed to parse integer: {}", .0)]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error("The error type for errors that can never happen: {}", .0)]
+    Infallible(#[from] std::convert::Infallible),
+}
+
+pub type ParseCommandResult<T> = std::result::Result<T, ParseCommandError>;
 
 pub trait Execute {
     fn execute(
@@ -18,7 +45,7 @@ pub trait Execute {
 }
 
 pub trait Parse {
-    fn parse(command: &str, args: &[String]) -> Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized;
 }
@@ -34,7 +61,7 @@ pub enum Command {
 }
 
 impl Parse for Command {
-    fn parse(command: &str, args: &[String]) -> Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -86,28 +113,6 @@ impl UnknownCommand {
         Self { command, args }
     }
 }
-
-//TODO 更完善的 parse Error
-#[derive(Debug, PartialEq, Eq)]
-pub enum ParseCommandError {
-    LessArgs(String, Args, usize),
-    MoreArgs(String, Args, usize),
-}
-
-impl Display for ParseCommandError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseCommandError::LessArgs(cmd, _args, _tgt_num) => {
-                write!(f, "{}: not enough arguments", cmd)
-            }
-            ParseCommandError::MoreArgs(cmd, _args, _tgt_num) => {
-                write!(f, "{}: too many arguments", cmd)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ParseCommandError {}
 
 #[cfg(test)]
 mod tests {

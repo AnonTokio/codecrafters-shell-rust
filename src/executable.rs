@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::{
     backgrond::BACKGROUDN_MANAGER,
     builtin::ExitCode,
-    command::{Args, Execute, Parse},
+    command::{Args, Execute, Parse, ParseCommandError, ParseCommandResult},
     redirect::{Reader, Writer},
 };
 
@@ -56,7 +56,7 @@ impl Executable {
 }
 
 impl Parse for Executable {
-    fn parse(command: &str, args: &[String]) -> crate::Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -67,7 +67,7 @@ impl Parse for Executable {
                 args.to_vec(),
             ))
         } else {
-            Err("Cannot find executable".into())
+            Err(ParseCommandError::ExecutableNotExists(command.to_string()))
         }
     }
 }

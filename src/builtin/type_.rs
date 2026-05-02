@@ -1,9 +1,8 @@
 use std::io::Write;
 
 use crate::{
-    Result,
     builtin::{BUILTIN_COMMANDS, ExitCode},
-    command::{Execute, Parse, ParseCommandError},
+    command::{Execute, Parse, ParseCommandError, ParseCommandResult},
     executable::find_in_path,
     redirect::{Reader, Writer},
 };
@@ -20,12 +19,16 @@ impl TypeCommand {
 }
 
 impl Parse for TypeCommand {
-    fn parse(command: &str, args: &[String]) -> Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {
         if args.is_empty() {
-            return Err(ParseCommandError::LessArgs(command.to_string(), args.to_vec(), 1).into());
+            return Err(ParseCommandError::LessArgs(
+                command.to_string(),
+                args.to_vec(),
+                1,
+            ));
         }
 
         Ok(TypeCommand::new(args.to_vec()))

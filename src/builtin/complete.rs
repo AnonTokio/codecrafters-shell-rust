@@ -1,9 +1,8 @@
 use std::io::Write;
 
 use crate::{
-    Result,
     builtin::ExitCode,
-    command::{Execute, Parse},
+    command::{Execute, Parse, ParseCommandResult},
     redirect::{Reader, Writer},
 };
 
@@ -44,7 +43,7 @@ pub struct CompleteCommand {
 }
 
 impl Parse for CompleteCommand {
-    fn parse(_command: &str, args: &[String]) -> Result<Self>
+    fn parse(_command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {

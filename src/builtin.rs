@@ -3,10 +3,10 @@ use std::{collections::HashSet, env, io::Write, path::PathBuf};
 use lazy_static::lazy_static;
 
 use crate::{
-    HISTORY_FILE, Result,
+    HISTORY_FILE,
     backgrond::BACKGROUDN_MANAGER,
     builtin::complete::CompleteCommand,
-    command::{Execute, Parse, ParseCommandError},
+    command::{Execute, Parse, ParseCommandError, ParseCommandResult},
     history::save_history,
     redirect::{Reader, Writer},
 };
@@ -39,7 +39,7 @@ pub enum BuiltinCommand {
 }
 
 impl Parse for BuiltinCommand {
-    fn parse(command: &str, args: &[String]) -> Result<Self>
+    fn parse(command: &str, args: &[String]) -> ParseCommandResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -57,18 +57,22 @@ impl Parse for BuiltinCommand {
             "pwd" => {
                 // TODO 能否统一 check arg num 过程？
                 if !args.is_empty() {
-                    return Err(
-                        ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 0).into(),
-                    );
+                    return Err(ParseCommandError::MoreArgs(
+                        command.to_string(),
+                        args.to_vec(),
+                        0,
+                    ));
                 }
 
                 BuiltinCommand::Pwd
             }
             "cd" => {
                 if args.len() > 1 {
-                    return Err(
-                        ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 1).into(),
-                    );
+                    return Err(ParseCommandError::MoreArgs(
+                        command.to_string(),
+                        args.to_vec(),
+                        1,
+                    ));
                 }
 
                 let target_dir = if !args.is_empty() {
@@ -81,18 +85,22 @@ impl Parse for BuiltinCommand {
             "complete" => BuiltinCommand::Complete(CompleteCommand::parse(command, args)?),
             "jobs" => {
                 if !args.is_empty() {
-                    return Err(
-                        ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 0).into(),
-                    );
+                    return Err(ParseCommandError::MoreArgs(
+                        command.to_string(),
+                        args.to_vec(),
+                        0,
+                    ));
                 }
 
                 BuiltinCommand::Jobs
             }
             "exit" => {
                 if args.len() > 1 {
-                    return Err(
-                        ParseCommandError::MoreArgs(command.to_string(), args.to_vec(), 1).into(),
-                    );
+                    return Err(ParseCommandError::MoreArgs(
+                        command.to_string(),
+                        args.to_vec(),
+                        1,
+                    ));
                 }
 
                 let exit_code = if args.is_empty() { 0 } else { args[0].parse()? };
@@ -204,11 +212,8 @@ mod tests {
     #[test]
     fn test_parse_type_error() {
         assert_eq!(
-            BuiltinCommand::parse("type", &[])
-                .unwrap_err()
-                .downcast::<ParseCommandError>()
-                .unwrap(),
-            ParseCommandError::LessArgs("type".to_string(), vec![], 1).into()
+            BuiltinCommand::parse("type", &[]).unwrap_err(),
+            ParseCommandError::LessArgs("type".to_string(), vec![], 1)
         );
     }
 

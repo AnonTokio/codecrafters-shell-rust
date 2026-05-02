@@ -25,9 +25,6 @@ mod tokenize;
 mod utils;
 mod validator;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Result<T> = std::result::Result<T, Error>;
-
 static PROMPT: &str = "$ ";
 lazy_static! {
     static ref HISTORY_FILE: String = std::env::var("HISTFILE").unwrap_or(".history".to_string());

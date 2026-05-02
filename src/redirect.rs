@@ -1,7 +1,5 @@
 use std::{fs, io, process};
 
-use crate::Result;
-
 #[derive(Debug)]
 pub enum Writer {
     Stdout(io::Stdout),
@@ -12,7 +10,7 @@ pub enum Writer {
 }
 
 impl Writer {
-    pub fn try_clone(&self) -> Result<Writer> {
+    pub fn try_clone(&self) -> Result<Writer, io::Error> {
         let writer = match self {
             Writer::Stdout(_) => Writer::Stdout(io::stdout()),
             Writer::Stderr(_) => Writer::Stderr(io::stderr()),
@@ -90,7 +88,7 @@ pub enum Reader {
 }
 
 impl Reader {
-    pub fn try_clone(&self) -> Result<Reader> {
+    pub fn try_clone(&self) -> Result<Reader, io::Error> {
         let reader = match self {
             Reader::Stdin => Reader::Stdin,
             Reader::PipeReader(pipe_reader) => Reader::PipeReader(pipe_reader.try_clone()?),

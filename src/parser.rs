@@ -2,11 +2,11 @@ use std::{collections::HashSet, fs, io, thread};
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use thiserror::Error;
 
 use crate::{
-    Result,
     builtin::ExitCode,
-    command::{Command, Execute, Parse},
+    command::{Command, Execute, Parse, ParseCommandError},
     redirect::{Reader, Writer},
 };
 
@@ -14,6 +14,20 @@ lazy_static! {
     static ref COMMAND_END_TOKENS: HashSet<&'static str> =
         HashSet::from(["&", "&&", "|", "||", ";"]);
 }
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unexpect EOF")]
+    UnexpectEof,
+
+    #[error("IO error: {}", .0)]
+    IoError(#[from] io::Error),
+
+    #[error("{}", .0)]
+    ParseCommandError(#[from] ParseCommandError),
+}
+
+pub type ParseResult<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug)]
 pub struct CommandExecution {
@@ -101,7 +115,7 @@ fn extract_redirect(s: &str) -> Option<(&str, &str, &str)> {
 fn parse_redirect(
     tokens: &[String],
     start_pos: usize,
-) -> Result<Option<(RedirectIO, Writer, usize)>> {
+) -> ParseResult<Option<(RedirectIO, Writer, usize)>> {
     //TODO 支持输入重定向
     if let Some((origin, redirect, new)) = extract_redirect(&tokens[start_pos]) {
         let mut num = 1;
@@ -117,7 +131,7 @@ fn parse_redirect(
             "2" => io::stderr().into(),
             "" => {
                 if start_pos + 1 == tokens.len() {
-                    return Err("syntax error".into());
+                    return Err(ParseError::UnexpectEof);
                 } else {
                     num += 1;
                     fs::OpenOptions::new()
@@ -136,7 +150,7 @@ fn parse_redirect(
     }
 }
 
-pub fn parse_tokens(tokens: &[String]) -> Result<Vec<CommandExecution>> {
+pub fn parse_tokens(tokens: &[String]) -> ParseResult<Vec<CommandExecution>> {
     let mut idx = 0;
     let mut command_exec_vec = vec![];
     let mut current_cmd_args: Vec<String> = vec![];
